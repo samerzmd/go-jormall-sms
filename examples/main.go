@@ -50,5 +50,4 @@ func main() {
 	} else {
 		fmt.Println("OTP sent successfully. Message ID:", messageId)
 	}
-
 }
