@@ -1,5 +1,7 @@
 # go-jormall-sms
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/ebe183f7ba7244ab821f18e09d00d172)](https://app.codacy.com/gh/samerzmd/go-jormall-sms?utm_source=github.com&utm_medium=referral&utm_content=samerzmd/go-jormall-sms&utm_campaign=Badge_Grade)
+
 go-jormall-sms is a Go package for interacting with the Jormall SMS Gateway. It provides methods to send SMS messages, check account balance, and more.
 
 ## Installation
