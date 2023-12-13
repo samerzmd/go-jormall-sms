@@ -19,7 +19,7 @@ package main
 
 import (
     "fmt"
-    "go-jormall-sms"
+    "github.com/samerzmd/go-jormall-sms"
 )
 
 func main() {
