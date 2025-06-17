@@ -1,27 +1,32 @@
 package sms
 
 import (
-    "net/http"
+	"net/http"
 )
 
-// JormallConfig holds configuration details for Jormall SMS Gateway.
-type JormallConfig struct {
-    BaseURL         string
-    AccountName     string
-    AccountPassword string
-    SenderID        string
+// Config holds configuration details for the JoSMS Gateway.
+type Config struct {
+	BaseURL         string // e.g., https://www.josms.net
+	AccountName     string
+	AccountPassword string
+	SenderID        string
+	RequestTimeout  int // Only used for bulk SMS
 }
 
-// JormallClient represents a client for Jormall SMS service.
+// JormallClient represents a client for JoSMS Gateway.
 type JormallClient struct {
-    Config     *JormallConfig
-    HTTPClient *http.Client
+	Config     Config
+	HTTPClient *http.Client
 }
 
-// NewJormallClient creates a new Jormall SMS client with the given configuration.
-func NewJormallClient(config *JormallConfig) *JormallClient {
-    return &JormallClient{
-        Config:     config,
-        HTTPClient: &http.Client{},
-    }
+// NewJormallClient creates a new JoSMS client with the given configuration.
+func NewJormallClient(cfg Config, httpClient *http.Client) *JormallClient {
+	if httpClient == nil {
+		httpClient = &http.Client{}
+	}
+
+	return &JormallClient{
+		Config:     cfg,
+		HTTPClient: httpClient,
+	}
 }

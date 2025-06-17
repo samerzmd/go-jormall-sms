@@ -10,148 +10,144 @@ import (
 	"strings"
 )
 
+// --- Helpers ---
+
+func parseGatewayResponse(respBody []byte) (string, error) {
+	parts := strings.Split(string(respBody), " = ")
+	if len(parts) < 2 {
+		return "", errors.New("invalid response format")
+	}
+	return parts[1], nil
+}
+
+func sanitizeMessage(msg string) string {
+	msg = strings.ReplaceAll(msg, "%", "%25")
+	msg = strings.ReplaceAll(msg, "&", "%26")
+	return msg
+}
+
+// --- API Methods ---
+
 // Balance retrieves the current balance from the Jormall SMS Gateway.
 func (client *JormallClient) Balance() (int, error) {
-    endPoint := fmt.Sprintf("%s/SMS/API/GetBalance", client.Config.BaseURL)
-    reqData := url.Values{}
-    reqData.Set("AccName", client.Config.AccountName)
-    reqData.Set("AccPass", client.Config.AccountPassword)
+	endPoint := fmt.Sprintf("%s/SMS/API/GetBalance", client.Config.BaseURL)
+	reqData := url.Values{}
+	reqData.Set("AccName", client.Config.AccountName)
+	reqData.Set("AccPass", client.Config.AccountPassword)
 
-    req, err := http.NewRequest("GET", endPoint, nil)
-    if err != nil {
-        return 0, err
-    }
-    req.URL.RawQuery = reqData.Encode()
+	req, err := http.NewRequest("GET", endPoint, nil)
+	if err != nil {
+		return 0, err
+	}
+	req.URL.RawQuery = reqData.Encode()
 
-    resp, err := client.HTTPClient.Do(req)
-    if err != nil {
-        return 0, err
-    }
-    defer resp.Body.Close()
+	resp, err := client.HTTPClient.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
 
-    body, err := io.ReadAll(resp.Body)
-    if err != nil {
-        return 0, err
-    }
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, err
+	}
 
-    // Remove double quotes and convert to int
-    balanceStr := strings.Trim(string(body), "\"")
-    balance, err := strconv.Atoi(balanceStr)
-    if err != nil {
-        return 0, err
-    }
+	balanceStr := strings.Trim(string(body), "\"")
+	balance, err := strconv.Atoi(balanceStr)
+	if err != nil {
+		return 0, err
+	}
 
-    return balance, nil
+	return balance, nil
 }
 
-// Send sends a single SMS message to the specified number.
+// Send sends a single general SMS message.
 func (client *JormallClient) Send(number, message string) (string, error) {
-    endPoint := fmt.Sprintf("%s/SMSServices/Clients/Prof/RestSingleSMS_General/SendSMS", client.Config.BaseURL)
-    reqData := url.Values{}
-    reqData.Set("AccName", client.Config.AccountName)
-    reqData.Set("AccPass", client.Config.AccountPassword)
-    reqData.Set("senderid", client.Config.SenderID)
-    reqData.Set("numbers", number) // Assume number is already formatted
-    reqData.Set("msg", message)    // Assume message is already formatted
+	endPoint := fmt.Sprintf("%s/SMSServices/Clients/Prof/RestSingleSMS_General/SendSMS", client.Config.BaseURL)
+	reqData := url.Values{}
+	reqData.Set("AccName", client.Config.AccountName)
+	reqData.Set("AccPass", client.Config.AccountPassword)
+	reqData.Set("senderid", client.Config.SenderID) // Use service-prefixed sender
+	reqData.Set("numbers", number)
+	reqData.Set("msg", sanitizeMessage(message))
 
-    req, err := http.NewRequest("GET", endPoint, nil)
-    if err != nil {
-        return "", err
-    }
-    req.URL.RawQuery = reqData.Encode()
+	req, err := http.NewRequest("GET", endPoint, nil)
+	if err != nil {
+		return "", err
+	}
+	req.URL.RawQuery = reqData.Encode()
 
-    resp, err := client.HTTPClient.Do(req)
-    if err != nil {
-        return "", err
-    }
-    defer resp.Body.Close()
+	resp, err := client.HTTPClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
 
-    body, err := io.ReadAll(resp.Body)
-    if err != nil {
-        return "", err
-    }
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
 
-    // Extracting message ID from the response
-    parts := strings.Split(string(body), " = ")
-    if len(parts) < 2 {
-        return "", errors.New("invalid response format")
-    }
-    messageID := parts[1]
-
-    return messageID, nil
+	return parseGatewayResponse(body)
 }
 
-func (client *JormallClient) SendBulk(numbers []string, message string) (string, error) {
-    endPoint := fmt.Sprintf("%s/sms/api/SendBulkMessages.cfm", client.Config.BaseURL)
-    timeout := 5000000 // Adjust as necessary
-
-    reqData := url.Values{}
-    reqData.Set("AccName", client.Config.AccountName)
-    reqData.Set("AccPass", client.Config.AccountPassword)
-    reqData.Set("senderid", client.Config.SenderID)
-    reqData.Set("numbers", strings.Join(numbers, ",")) // Join numbers with a comma
-    reqData.Set("msg", message)
-    reqData.Set("requesttimeout", fmt.Sprintf("%d", timeout))
-
-    req, err := http.NewRequest("GET", endPoint, nil)
-    if err != nil {
-        return "", err
-    }
-    req.URL.RawQuery = reqData.Encode()
-
-    resp, err := client.HTTPClient.Do(req)
-    if err != nil {
-        return "", err
-    }
-    defer resp.Body.Close()
-
-    body, err := io.ReadAll(resp.Body)
-    if err != nil {
-        return "", err
-    }
-
-    parts := strings.Split(string(body), " = ")
-    if len(parts) < 2 {
-        return "", errors.New("invalid response format")
-    }
-    messageID := parts[1]
-
-    return messageID, nil
-}
-
-// SendOtp sends an OTP message to the specified phone number.
+// SendOtp sends an OTP message.
 func (client *JormallClient) SendOtp(number, otp string) (string, error) {
-    endPoint := fmt.Sprintf("%s/SMSServices/Clients/Prof/RestSingleSMS/SendSMS", client.Config.BaseURL)
-    reqData := url.Values{}
-    reqData.Set("AccName", client.Config.AccountName)
-    reqData.Set("AccPass", client.Config.AccountPassword)
-    reqData.Set("senderid", client.Config.SenderID)
-    reqData.Set("numbers", number) // Assume number is already formatted
-    reqData.Set("msg", otp)        // OTP message
+	endPoint := fmt.Sprintf("%s/SMSServices/Clients/Prof/RestSingleSMS/SendSMS", client.Config.BaseURL)
+	reqData := url.Values{}
+	reqData.Set("AccName", client.Config.AccountName)
+	reqData.Set("AccPass", client.Config.AccountPassword)
+	reqData.Set("senderid", client.Config.SenderID) // OTP sender, no "SRV" prefix
+	reqData.Set("numbers", number)
+	reqData.Set("msg", sanitizeMessage(otp))
 
-    req, err := http.NewRequest("GET", endPoint, nil)
-    if err != nil {
-        return "", err
-    }
-    req.URL.RawQuery = reqData.Encode()
+	req, err := http.NewRequest("GET", endPoint, nil)
+	if err != nil {
+		return "", err
+	}
+	req.URL.RawQuery = reqData.Encode()
 
-    resp, err := client.HTTPClient.Do(req)
-    if err != nil {
-        return "", err
-    }
-    defer resp.Body.Close()
+	resp, err := client.HTTPClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
 
-    body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
 
-    if err != nil {
-        return "", err
-    }
+	return parseGatewayResponse(body)
+}
 
-    parts := strings.Split(string(body), " = ")
-    if len(parts) < 2 {
-        return "", errors.New("invalid response format")
-    }
-    messageID := parts[1]
+// SendBulk sends messages to multiple numbers (max 120).
+func (client *JormallClient) SendBulk(numbers []string, message string) (string, error) {
+	endPoint := fmt.Sprintf("%s/sms/api/SendBulkMessages.cfm", client.Config.BaseURL)
+	reqData := url.Values{}
+	reqData.Set("AccName", client.Config.AccountName)
+	reqData.Set("AccPass", client.Config.AccountPassword)
+	reqData.Set("senderid", client.Config.SenderID) // Use "SRV" sender for general bulk
+	reqData.Set("numbers", strings.Join(numbers, ","))
+	reqData.Set("msg", sanitizeMessage(message))
+	reqData.Set("requesttimeout", strconv.Itoa(client.Config.RequestTimeout))
 
-    return messageID, nil
+	req, err := http.NewRequest("GET", endPoint, nil)
+	if err != nil {
+		return "", err
+	}
+	req.URL.RawQuery = reqData.Encode()
+
+	resp, err := client.HTTPClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	return parseGatewayResponse(body)
 }
